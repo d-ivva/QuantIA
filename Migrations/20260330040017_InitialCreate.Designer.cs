@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using QuantIA.Data;
@@ -11,9 +12,11 @@ using QuantIA.Data;
 namespace QuantIA.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260330040017_InitialCreate")] 
+    partial class InitialCreate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -33,7 +36,7 @@ namespace QuantIA.Migrations
                     b.Property<string>("AccountNumber")
                         .HasColumnType("text");
 
-                    b.Property<string>("BranchNumber")  
+                    b.Property<string>("BranchNumber")
                         .HasColumnType("text");
 
                     b.Property<string>("Color")

@@ -1,7 +1,7 @@
 // Program.cs
 
-using DesenvWebApi.Data;
 using Microsoft.EntityFrameworkCore;
+using QuantIA.Data;
 
 // =====================================================================
 // BUILDER — fase de configuração
