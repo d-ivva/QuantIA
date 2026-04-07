@@ -29,7 +29,7 @@ public class Transaction
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public User? User { get; set; } = null!;
-    public Account? Account { get; set; } = null!;
+    public Account? Account { get; set; } 
     public Category? Category { get; set; }
-    public TransactionType? TransactionType { get; set; } = null!;
+    public TransactionType? TransactionType { get; set; } 
 }
