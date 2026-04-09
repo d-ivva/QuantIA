@@ -19,20 +19,38 @@ public class TransactionsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(Transaction request)
     {
+        if (request.Amount <= 0)
+            return BadRequest("O valor deve ser maior que zero.");
+
         var account = await _context.Accounts.FindAsync(request.AccountId);
         if (account == null)
-            return BadRequest("Conta inválida");
-        
+            return BadRequest("Conta inválida.");
+
+        var type = await _context.TransactionTypes.FindAsync(request.TransactionTypeId);
+        if (type == null)
+            return BadRequest("Tipo de transação inválido.");
+
+        if (request.CategoryId != null)
+        {
+            var categoryExists = await _context.Categories
+                .AnyAsync(c => c.Id == request.CategoryId);
+
+            if (!categoryExists)
+                return BadRequest("Categoria inválida.");
+        }
+
         if (request.IsInstallment)
         {
+            if (request.Direction != "expense")
+                return BadRequest("Apenas despesas podem ser parceladas.");
+
             if (!account.HasCreditCard || account.CreditCardClosingDay == null)
-                return BadRequest("Conta não permite parcelamento");
+                return BadRequest("Conta não permite parcelamento.");
 
-            if (request.InstallmentTotal == null || request.InstallmentTotal <= 0)
-                return BadRequest("Total de parcelas inválido");
-            
+            if (request.InstallmentTotal == null || request.InstallmentTotal < 2)
+                return BadRequest("Número de parcelas inválido (mínimo 2).");
+
             var groupId = Guid.NewGuid().GetHashCode();
-
             var installmentValue = request.Amount / request.InstallmentTotal.Value;
 
             for (int i = 1; i <= request.InstallmentTotal; i++)
@@ -42,6 +60,7 @@ public class TransactionsController : ControllerBase
                     AccountId = request.AccountId,
                     CategoryId = request.CategoryId,
                     TransactionTypeId = request.TransactionTypeId,
+                    Direction = request.Direction,
                     Amount = installmentValue,
                     Description = request.Description,
                     TransactionDate = request.TransactionDate.AddMonths(i - 1),
@@ -57,6 +76,11 @@ public class TransactionsController : ControllerBase
         }
         else
         {
+            request.IsInstallment = false;
+            request.InstallmentNumber = null;
+            request.InstallmentTotal = null;
+            request.InstallmentGroupId = null;
+
             _context.Transactions.Add(request);
         }
 
@@ -76,7 +100,7 @@ public class TransactionsController : ControllerBase
 
         return Ok(data);
     }
-    
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
@@ -91,7 +115,8 @@ public class TransactionsController : ControllerBase
 
         return Ok(transaction);
     }
-    
+
+
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, Transaction request)
     {
@@ -99,6 +124,20 @@ public class TransactionsController : ControllerBase
 
         if (transaction == null)
             return NotFound();
+
+        if (request.Amount <= 0)
+            return BadRequest("Valor inválido.");
+
+        var accountExists = await _context.Accounts
+            .AnyAsync(a => a.Id == request.AccountId);
+
+        if (!accountExists)
+            return BadRequest("Conta inválida.");
+
+        if (transaction.IsInstallment)
+        {
+            return BadRequest("Não é permitido editar transações parceladas individualmente.");
+        }
 
         transaction.AccountId = request.AccountId;
         transaction.CategoryId = request.CategoryId;
@@ -119,8 +158,20 @@ public class TransactionsController : ControllerBase
 
         if (transaction == null)
             return NotFound();
+        
+        if (transaction.IsInstallment && transaction.InstallmentGroupId != null)
+        {
+            var group = await _context.Transactions
+                .Where(t => t.InstallmentGroupId == transaction.InstallmentGroupId)
+                .ToListAsync();
 
-        _context.Transactions.Remove(transaction);
+            _context.Transactions.RemoveRange(group);
+        }
+        else
+        {
+            _context.Transactions.Remove(transaction);
+        }
+
         await _context.SaveChangesAsync();
 
         return Ok();
