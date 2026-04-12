@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
     public DbSet<Category> Categories { get; set; }
     public DbSet<Transaction> Transactions { get; set; }
     public DbSet<TransactionType> TransactionTypes { get; set; }
+    public DbSet<InstallmentGroup> InstallmentGroups { get; set; }
     public DbSet<MonthlyBudget> MonthlyBudgets { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -23,5 +24,10 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(t => t.CategoryId)
             .OnDelete(DeleteBehavior.SetNull);
+        
+        modelBuilder.Entity<Transaction>()
+            .Property(t => t.Direction)
+            .HasConversion<string>();
     }
+    
 }

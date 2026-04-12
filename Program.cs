@@ -2,7 +2,8 @@
 
 using Microsoft.EntityFrameworkCore;
 using QuantIA.Data;
-
+using QuantIA.Services;
+using System.Text.Json.Serialization;
 // =====================================================================
 // BUILDER — fase de configuração
 // Aqui registramos todos os serviços que a aplicação vai usar.
@@ -20,8 +21,16 @@ builder.Services.AddControllers();
 // options.UseNpgsql(...) diz ao EF para usar o PostgreSQL como banco.
 // builder.Configuration.GetConnectionString("DefaultConnection") lê
 // a connection string do appsettings.json.
-builder.Services.AddDbContext<AppDbContext>(options =>
+builder.Services.AddDbContextFactory<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddSingleton<ITransactionService, TransactionService>(); 
+
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 
 // Adiciona o Swagger/OpenAPI — interface web para testar a API.
 // AddEndpointsApiExplorer() descobre os endpoints disponíveis.

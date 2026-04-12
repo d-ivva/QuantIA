@@ -16,7 +16,7 @@ public class Transaction
 
     public string? Description { get; set; }
     
-    public string Direction { get; set; }
+    public TransactionDirection Direction { get; set; } 
 
     public DateTime TransactionDate { get; set; }
 
@@ -34,4 +34,10 @@ public class Transaction
     public Account? Account { get; set; } 
     public Category? Category { get; set; }
     public TransactionType? TransactionType { get; set; } 
+}
+
+public enum TransactionDirection
+{
+    income,
+    expense
 }
