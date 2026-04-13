@@ -32,6 +32,13 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
+builder.Services.AddControllers()
+    .AddJsonOptions(options => {
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
+
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+
 // Adiciona o Swagger/OpenAPI — interface web para testar a API.
 // AddEndpointsApiExplorer() descobre os endpoints disponíveis.
 // AddSwaggerGen() gera a documentação interativa da API.
