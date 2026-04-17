@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using QuantIA.Data;
+using QuantIA.Interface;
 using QuantIA.Models;
 
 namespace QuantIA.Services;
@@ -112,27 +113,84 @@ public class TransactionService : ITransactionService
     }
 
     public async Task Atualizar(int id, Transaction request)
+{
+    using var _context = await _contextFactory.CreateDbContextAsync();
+
+    var transaction = await _context.Transactions.FindAsync(id)
+        ?? throw new Exception("Transação não encontrada.");
+
+    if (request.Amount <= 0)
+        throw new Exception("Valor deve ser maior que zero.");
+    
+    var account = await _context.Accounts.FindAsync(request.AccountId)
+        ?? throw new Exception("Conta inválida.");
+    
+    var categoryExists = await _context.Categories
+        .AnyAsync(c => c.Id == request.CategoryId);
+
+    if (!categoryExists)
+        throw new Exception("Categoria inválida.");
+    
+    var typeExists = await _context.TransactionTypes
+        .AnyAsync(t => t.Id == request.TransactionTypeId);
+
+    if (!typeExists)
+        throw new Exception("Tipo inválido.");
+    
+    if (transaction.InstallmentGroupId != null)
     {
-        using var _context = await _contextFactory.CreateDbContextAsync();
+        if (request.IsInstallment != transaction.IsInstallment)
+            throw new Exception("Não é permitido alterar tipo de parcelamento.");
 
-        var transaction = await _context.Transactions.FindAsync(id)
-            ?? throw new Exception("Transação não encontrada.");
+        if (request.InstallmentTotal != transaction.InstallmentTotal)
+            throw new Exception("Não é permitido alterar número de parcelas.");
 
-        if (transaction.IsInstallment)
-            throw new Exception("Não pode editar parcela individual.");
+        if (request.TransactionDate != transaction.TransactionDate)
+            throw new Exception("Não é permitido alterar a data de parcelas.");
 
-        if (request.Amount <= 0)
-            throw new Exception("Valor inválido.");
+        var groupId = transaction.InstallmentGroupId.Value;
 
+        var transactions = await _context.Transactions
+            .Where(t => t.InstallmentGroupId == groupId)
+            .OrderBy(t => t.InstallmentNumber)
+            .ToListAsync();
+
+        if (!transactions.Any())
+            throw new Exception("Grupo de parcelas não encontrado.");
+
+        var totalInstallments = transactions.First().InstallmentTotal ?? 1;
+
+        var baseValue = Math.Floor((request.Amount / totalInstallments) * 100) / 100;
+        var totalBase = baseValue * totalInstallments;
+        var difference = request.Amount - totalBase;
+
+        for (int i = 0; i < transactions.Count; i++)
+        {
+            var t = transactions[i];
+
+            t.AccountId = request.AccountId;
+            t.CategoryId = request.CategoryId;
+            t.TransactionTypeId = request.TransactionTypeId;
+            t.Description = request.Description;
+
+            if (i == transactions.Count - 1)
+                t.Amount = baseValue + difference;
+            else
+                t.Amount = baseValue;
+        }
+    }
+    else
+    {
         transaction.AccountId = request.AccountId;
         transaction.CategoryId = request.CategoryId;
         transaction.TransactionTypeId = request.TransactionTypeId;
         transaction.Amount = request.Amount;
         transaction.Description = request.Description;
         transaction.TransactionDate = request.TransactionDate;
-
-        await _context.SaveChangesAsync();
     }
+
+    await _context.SaveChangesAsync();
+}
 
     public async Task Deletar(int id)
     {

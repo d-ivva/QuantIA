@@ -1,7 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using QuantIA.Models;
+﻿using QuantIA.Models;
 
-namespace QuantIA.Services;
+namespace QuantIA.Interface;
 
 public interface ITransactionService
 {
