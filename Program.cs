@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using QuantIA.Data;
 using QuantIA.Services;
 using System.Text.Json.Serialization;
+using QuantIA.Interface;
+
 // =====================================================================
 // BUILDER — fase de configuração
 // Aqui registramos todos os serviços que a aplicação vai usar.
@@ -25,6 +27,8 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddSingleton<ITransactionService, TransactionService>(); 
+
+builder.Services.AddScoped<IAccountService, AccountService>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

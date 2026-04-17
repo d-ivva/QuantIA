@@ -1,4 +1,6 @@
-﻿public class InstallmentGroup
+﻿namespace QuantIA.Models;
+
+public class InstallmentGroup
 {
     public int Id { get; set; }
 
