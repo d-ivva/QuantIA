@@ -19,31 +19,31 @@ public class TransactionService : ITransactionService
         using var _context = await _contextFactory.CreateDbContextAsync();
 
         if (request.Amount <= 0)
-            throw new Exception("Valor deve ser maior que zero.");
+            throw new ApplicationException("Valor deve ser maior que zero.");
 
         var account = await _context.Accounts.FindAsync(request.AccountId)
-            ?? throw new Exception("Conta inválida.");
+                      ?? throw new ApplicationException("Conta inválida.");
 
         var type = await _context.TransactionTypes.FindAsync(request.TransactionTypeId)
-            ?? throw new Exception("Tipo inválido.");
+                   ?? throw new ApplicationException("Tipo inválido.");
 
         var categoryExists = await _context.Categories
             .AnyAsync(c => c.Id == request.CategoryId);
 
         if (!categoryExists)
-            throw new Exception("Categoria obrigatória e inválida.");
+            throw new ApplicationException("Categoria obrigatória e inválida.");
 
         if (request.IsInstallment)
         {
             if (request.Direction != TransactionDirection.expense)
-                throw new Exception("Apenas despesas podem ser parceladas.");
+                throw new ApplicationException("Apenas despesas podem ser parceladas.");
 
             if (!account.HasCreditCard)
-                throw new Exception("Conta não permite parcelamento.");
+                throw new ApplicationException("Conta não permite parcelamento.");
 
             if (request.InstallmentTotal == null || request.InstallmentTotal < 2)
-                throw new Exception("Parcelamento mínimo de 2x.");
-            
+                throw new ApplicationException("Parcelamento mínimo de 2x.");
+
             var group = new InstallmentGroup
             {
                 AccountId = request.AccountId,
@@ -68,8 +68,10 @@ public class TransactionService : ITransactionService
                     Direction = request.Direction,
                     Amount = installmentValue,
                     Description = request.Description,
-                    TransactionDate = request.TransactionDate.AddMonths(i - 1),
-
+                    TransactionDate = DateTime.SpecifyKind(
+                        request.TransactionDate.AddMonths(i - 1),
+                        DateTimeKind.Utc
+                    ),
                     IsInstallment = true,
                     InstallmentNumber = i,
                     InstallmentTotal = request.InstallmentTotal,
@@ -82,6 +84,11 @@ public class TransactionService : ITransactionService
             request.InstallmentGroupId = null;
             request.InstallmentNumber = null;
             request.InstallmentTotal = null;
+
+            request.TransactionDate = DateTime.SpecifyKind(
+                request.TransactionDate,
+                DateTimeKind.Utc
+            );
 
             _context.Transactions.Add(request);
         }
@@ -98,6 +105,7 @@ public class TransactionService : ITransactionService
             .Include(t => t.Account)
             .Include(t => t.Category)
             .Include(t => t.TransactionType)
+            .OrderBy(t => t.TransactionDate)
             .ToListAsync();
     }
 
@@ -113,91 +121,145 @@ public class TransactionService : ITransactionService
     }
 
     public async Task Atualizar(int id, Transaction request)
-{
-    using var _context = await _contextFactory.CreateDbContextAsync();
-
-    var transaction = await _context.Transactions.FindAsync(id)
-        ?? throw new Exception("Transação não encontrada.");
-
-    if (request.Amount <= 0)
-        throw new Exception("Valor deve ser maior que zero.");
-    
-    var account = await _context.Accounts.FindAsync(request.AccountId)
-        ?? throw new Exception("Conta inválida.");
-    
-    var categoryExists = await _context.Categories
-        .AnyAsync(c => c.Id == request.CategoryId);
-
-    if (!categoryExists)
-        throw new Exception("Categoria inválida.");
-    
-    var typeExists = await _context.TransactionTypes
-        .AnyAsync(t => t.Id == request.TransactionTypeId);
-
-    if (!typeExists)
-        throw new Exception("Tipo inválido.");
-    
-    if (transaction.InstallmentGroupId != null)
     {
-        if (request.IsInstallment != transaction.IsInstallment)
-            throw new Exception("Não é permitido alterar tipo de parcelamento.");
+        using var _context = await _contextFactory.CreateDbContextAsync();
 
-        if (request.InstallmentTotal != transaction.InstallmentTotal)
-            throw new Exception("Não é permitido alterar número de parcelas.");
+        var transaction = await _context.Transactions.FindAsync(id)
+                          ?? throw new ApplicationException("Transação não encontrada.");
 
-        if (request.TransactionDate != transaction.TransactionDate)
-            throw new Exception("Não é permitido alterar a data de parcelas.");
+        if (request.Amount <= 0)
+            throw new ApplicationException("Valor deve ser maior que zero.");
 
-        var groupId = transaction.InstallmentGroupId.Value;
+        var account = await _context.Accounts.FindAsync(request.AccountId)
+                      ?? throw new ApplicationException("Conta inválida.");
 
-        var transactions = await _context.Transactions
-            .Where(t => t.InstallmentGroupId == groupId)
-            .OrderBy(t => t.InstallmentNumber)
-            .ToListAsync();
+        var categoryExists = await _context.Categories
+            .AnyAsync(c => c.Id == request.CategoryId);
 
-        if (!transactions.Any())
-            throw new Exception("Grupo de parcelas não encontrado.");
+        if (!categoryExists)
+            throw new ApplicationException("Categoria inválida.");
 
-        var totalInstallments = transactions.First().InstallmentTotal ?? 1;
+        var typeExists = await _context.TransactionTypes
+            .AnyAsync(t => t.Id == request.TransactionTypeId);
 
-        var baseValue = Math.Floor((request.Amount / totalInstallments) * 100) / 100;
-        var totalBase = baseValue * totalInstallments;
-        var difference = request.Amount - totalBase;
+        if (!typeExists)
+            throw new ApplicationException("Tipo inválido.");
 
-        for (int i = 0; i < transactions.Count; i++)
+        // 🔴 CASO: já é parcelado → atualiza grupo
+        if (transaction.InstallmentGroupId != null)
         {
-            var t = transactions[i];
+            if (request.IsInstallment != transaction.IsInstallment)
+                throw new ApplicationException("Não é permitido alterar tipo de parcelamento.");
 
-            t.AccountId = request.AccountId;
-            t.CategoryId = request.CategoryId;
-            t.TransactionTypeId = request.TransactionTypeId;
-            t.Description = request.Description;
+            if (request.InstallmentTotal != transaction.InstallmentTotal)
+                throw new ApplicationException("Não é permitido alterar número de parcelas.");
 
-            if (i == transactions.Count - 1)
-                t.Amount = baseValue + difference;
-            else
-                t.Amount = baseValue;
+            if (request.TransactionDate.Date != transaction.TransactionDate.Date)
+                throw new ApplicationException("Não é permitido alterar a data de parcelas.");
+
+            var groupId = transaction.InstallmentGroupId.Value;
+
+            var transactions = await _context.Transactions
+                .Where(t => t.InstallmentGroupId == groupId)
+                .OrderBy(t => t.InstallmentNumber)
+                .ToListAsync();
+
+            var totalInstallments = transactions.First().InstallmentTotal ?? 1;
+
+            var baseValue = Math.Floor((request.Amount / totalInstallments) * 100) / 100;
+            var totalBase = baseValue * totalInstallments;
+            var difference = request.Amount - totalBase;
+
+            for (int i = 0; i < transactions.Count; i++)
+            {
+                var t = transactions[i];
+
+                t.AccountId = request.AccountId;
+                t.CategoryId = request.CategoryId;
+                t.TransactionTypeId = request.TransactionTypeId;
+                t.Description = request.Description;
+
+                if (i == transactions.Count - 1)
+                    t.Amount = baseValue + difference;
+                else
+                    t.Amount = baseValue;
+            }
         }
-    }
-    else
-    {
-        transaction.AccountId = request.AccountId;
-        transaction.CategoryId = request.CategoryId;
-        transaction.TransactionTypeId = request.TransactionTypeId;
-        transaction.Amount = request.Amount;
-        transaction.Description = request.Description;
-        transaction.TransactionDate = request.TransactionDate;
-    }
+        else
+        {
+            // 🟢 CASO: virar parcelado
+            if (request.IsInstallment)
+            {
+                if (request.Direction != TransactionDirection.expense)
+                    throw new ApplicationException("Apenas despesas podem ser parceladas.");
 
-    await _context.SaveChangesAsync();
-}
+                if (!account.HasCreditCard)
+                    throw new ApplicationException("Conta não permite parcelamento.");
+
+                if (request.InstallmentTotal == null || request.InstallmentTotal < 2)
+                    throw new ApplicationException("Parcelamento mínimo de 2x.");
+
+                _context.Transactions.Remove(transaction);
+
+                var group = new InstallmentGroup
+                {
+                    AccountId = request.AccountId,
+                    TotalInstallments = request.InstallmentTotal.Value,
+                    TotalAmount = request.Amount
+                };
+
+                _context.InstallmentGroups.Add(group);
+                await _context.SaveChangesAsync();
+
+                var installmentValue = Math.Round(
+                    request.Amount / request.InstallmentTotal.Value, 2
+                );
+
+                for (int i = 1; i <= request.InstallmentTotal; i++)
+                {
+                    _context.Transactions.Add(new Transaction
+                    {
+                        AccountId = request.AccountId,
+                        CategoryId = request.CategoryId,
+                        TransactionTypeId = request.TransactionTypeId,
+                        Direction = request.Direction,
+                        Amount = installmentValue,
+                        Description = request.Description,
+                        TransactionDate = DateTime.SpecifyKind(
+                            request.TransactionDate.AddMonths(i - 1),
+                            DateTimeKind.Utc
+                        ),
+                        IsInstallment = true,
+                        InstallmentNumber = i,
+                        InstallmentTotal = request.InstallmentTotal,
+                        InstallmentGroupId = group.Id
+                    });
+                }
+            }
+            else
+            {
+                // 🔵 normal update
+                transaction.AccountId = request.AccountId;
+                transaction.CategoryId = request.CategoryId;
+                transaction.TransactionTypeId = request.TransactionTypeId;
+                transaction.Amount = request.Amount;
+                transaction.Description = request.Description;
+                transaction.TransactionDate = DateTime.SpecifyKind(
+                    request.TransactionDate,
+                    DateTimeKind.Utc
+                );
+            }
+        }
+
+        await _context.SaveChangesAsync();
+    }
 
     public async Task Deletar(int id)
     {
         using var _context = await _contextFactory.CreateDbContextAsync();
 
         var transaction = await _context.Transactions.FindAsync(id)
-            ?? throw new Exception("Transação não encontrada.");
+                          ?? throw new ApplicationException("Transação não encontrada.");
 
         if (transaction.InstallmentGroupId != null)
         {
