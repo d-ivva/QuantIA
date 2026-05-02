@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using QuantIA.Data;
+using QuantIA.Interface;
 using QuantIA.Models;
 
 namespace QuantIA.Controllers;
@@ -9,24 +8,81 @@ namespace QuantIA.Controllers;
 [Route("api/[controller]")]
 public class TransactionTypesController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly ITransactionTypeService _service;
 
-    public TransactionTypesController(AppDbContext context)
+    public TransactionTypesController(ITransactionTypeService service)
     {
-        _context = context;
+        _service = service;
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Create(TransactionType request)
+    {
+        try
+        {
+            var result = await _service.Criar(request);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpGet]
     public async Task<IActionResult> Get()
     {
-        return Ok(await _context.TransactionTypes.ToListAsync());
+        try
+        {
+            return Ok(await _service.Listar());
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
-    [HttpPost]
-    public async Task<IActionResult> Create(TransactionType transactionType)
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(int id)
     {
-        _context.TransactionTypes.Add(transactionType);
-        await _context.SaveChangesAsync();
-        return Ok(transactionType);
+        try
+        {
+            var data = await _service.BuscarPorId(id);
+            if (data == null) return NotFound();
+
+            return Ok(data);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, TransactionType request)
+    {
+        try
+        {
+            await _service.Atualizar(id, request);
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        try
+        {
+            await _service.Deletar(id);
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 }
