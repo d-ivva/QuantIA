@@ -1,4 +1,4 @@
-﻿namespace QuantIA.Models;
+namespace QuantIA.Models;
 
 public class TransactionType
 {
@@ -6,7 +6,7 @@ public class TransactionType
 
     public string Name { get; set; } = null!;
 
-    public string Direction { get; set; } = null!; // "income" | "expense"
+    public TransactionDirection Direction { get; set; }
 
     public string Icon { get; set; } = null!;
 }
