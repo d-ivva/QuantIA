@@ -1,10 +1,12 @@
-﻿namespace QuantIA.Models;
+﻿using System.Text.Json.Serialization;
+
+namespace QuantIA.Models;
 
 public class Category
 {
     public int Id { get; set; }
 
-    public int? UserId { get; set; }
+    public int? UserId { get; set; } // TEMPORARIO, após testes e implementar Keycloak alterar para int 
 
     public string Name { get; set; } = null!;
 
@@ -12,5 +14,6 @@ public class Category
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    public User User { get; set; } = null!;
+    [JsonIgnore]
+    public User? User { get; set; } = null!;
 }
