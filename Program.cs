@@ -43,6 +43,8 @@ builder.Services.AddControllers()
 
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 
+builder.Services.AddScoped<ITransactionTypeService, TransactionTypeService>();
+
 // Adiciona o Swagger/OpenAPI — interface web para testar a API.
 // AddEndpointsApiExplorer() descobre os endpoints disponíveis.
 // AddSwaggerGen() gera a documentação interativa da API.
