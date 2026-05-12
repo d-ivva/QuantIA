@@ -47,6 +47,10 @@ builder.Services.AddScoped<ITransactionTypeService, TransactionTypeService>();
 
 builder.Services.AddScoped<IMonthlyBudgetService, MonthlyBudgetService>();
 
+builder.Services.AddScoped<IAiConfigService, AiConfigService>();
+builder.Services.AddScoped<IAiChatService, AiChatService>();
+builder.Services.AddHttpClient();
+
 // Adiciona o Swagger/OpenAPI — interface web para testar a API.
 // AddEndpointsApiExplorer() descobre os endpoints disponíveis.
 // AddSwaggerGen() gera a documentação interativa da API.
