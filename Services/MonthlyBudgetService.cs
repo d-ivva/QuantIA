@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using QuantIA.Data;
+using QuantIA.DTOs;
 using QuantIA.Interface;
 using QuantIA.Models;
 
@@ -107,5 +108,57 @@ public class MonthlyBudgetService : IMonthlyBudgetService
 
         _context.MonthlyBudgets.Remove(budget);
         await _context.SaveChangesAsync();
+    }
+
+    public async Task<BudgetReportDto> GerarRelatorio(int month, int year)
+    {
+        using var _context = await _contextFactory.CreateDbContextAsync();
+
+        var budget = await _context.MonthlyBudgets
+            .FirstOrDefaultAsync(b => b.Month == month && b.Year == year);
+
+        var startDate = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var endDate = startDate.AddMonths(1);
+
+        var transactions = await _context.Transactions
+            .Include(t => t.Category)
+            .Where(t =>
+                t.Direction == TransactionDirection.expense &&
+                t.TransactionDate >= startDate &&
+                t.TransactionDate < endDate)
+            .ToListAsync();
+
+        var spentAmount = transactions.Sum(t => t.Amount);
+
+        var byCategory = transactions
+            .GroupBy(t => t.Category?.Name ?? "Sem categoria")
+            .Select(g => new CategorySpendingDto
+            {
+                CategoryName = g.Key,
+                Amount = g.Sum(t => t.Amount),
+                Percentage = spentAmount > 0
+                    ? Math.Round((double)(g.Sum(t => t.Amount) / spentAmount * 100), 1)
+                    : 0
+            })
+            .OrderByDescending(c => c.Amount)
+            .ToList();
+
+        var budgetAmount = budget?.Amount;
+        var remaining = budgetAmount.HasValue ? budgetAmount.Value - spentAmount : 0;
+        var percentage = budgetAmount.HasValue && budgetAmount.Value > 0
+            ? Math.Round((double)(spentAmount / budgetAmount.Value * 100), 1)
+            : 0;
+
+        return new BudgetReportDto
+        {
+            HasBudget = budget != null,
+            BudgetAmount = budgetAmount,
+            SpentAmount = spentAmount,
+            RemainingAmount = remaining,
+            PercentageUsed = percentage,
+            Month = month,
+            Year = year,
+            ByCategory = byCategory
+        };
     }
 }

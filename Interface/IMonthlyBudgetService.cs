@@ -1,3 +1,4 @@
+using QuantIA.DTOs;
 using QuantIA.Models;
 
 namespace QuantIA.Interface;
@@ -10,4 +11,5 @@ public interface IMonthlyBudgetService
     Task<MonthlyBudget?> BuscarPorMesAno(int month, int year);
     Task Atualizar(int id, MonthlyBudget request);
     Task Deletar(int id);
+    Task<BudgetReportDto> GerarRelatorio(int month, int year);
 }
