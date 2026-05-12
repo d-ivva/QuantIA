@@ -1,22 +1,22 @@
 using Microsoft.AspNetCore.Mvc;
+using QuantIA.DTOs;
 using QuantIA.Interface;
-using QuantIA.Models;
 
 namespace QuantIA.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class MonthlyBudgetsController : ControllerBase
+public class AiConfigController : ControllerBase
 {
-    private readonly IMonthlyBudgetService _service;
+    private readonly IAiConfigService _service;
 
-    public MonthlyBudgetsController(IMonthlyBudgetService service)
+    public AiConfigController(IAiConfigService service)
     {
         _service = service;
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create(MonthlyBudget request)
+    public async Task<IActionResult> Create(AiConfigCreateDto request)
     {
         try
         {
@@ -42,45 +42,13 @@ public class MonthlyBudgetsController : ControllerBase
         }
     }
 
-    [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(int id)
+    [HttpGet("tem-configuracao")]
+    public async Task<IActionResult> TemConfiguracao()
     {
         try
         {
-            var data = await _service.BuscarPorId(id);
-            if (data == null) return NotFound();
-
-            return Ok(data);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-    }
-
-    [HttpGet("{month}/{year}")]
-    public async Task<IActionResult> GetByMesAno(int month, int year)
-    {
-        try
-        {
-            var data = await _service.BuscarPorMesAno(month, year);
-            if (data == null) return NotFound();
-
-            return Ok(data);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-    }
-
-    [HttpGet("report/{month}/{year}")]
-    public async Task<IActionResult> GetReport(int month, int year)
-    {
-        try
-        {
-            var data = await _service.GerarRelatorio(month, year);
-            return Ok(data);
+            var result = await _service.TemConfiguracao();
+            return Ok(new { hasConfig = result });
         }
         catch (Exception ex)
         {
@@ -89,7 +57,7 @@ public class MonthlyBudgetsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, MonthlyBudget request)
+    public async Task<IActionResult> Update(int id, AiConfigCreateDto request)
     {
         try
         {
