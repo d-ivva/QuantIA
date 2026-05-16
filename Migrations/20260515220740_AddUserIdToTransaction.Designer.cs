@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using QuantIA.Data;
@@ -11,9 +12,11 @@ using QuantIA.Data;
 namespace QuantIA.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260515220740_AddUserIdToTransaction")]
+    partial class AddUserIdToTransaction
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -299,12 +302,7 @@ namespace QuantIA.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int?>("UserId")
-                        .HasColumnType("integer");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("UserId");
 
                     b.ToTable("TransactionTypes");
                 });
@@ -411,15 +409,6 @@ namespace QuantIA.Migrations
                     b.Navigation("Category");
 
                     b.Navigation("TransactionType");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("QuantIA.Models.TransactionType", b =>
-                {
-                    b.HasOne("QuantIA.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId");
 
                     b.Navigation("User");
                 });

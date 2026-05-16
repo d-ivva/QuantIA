@@ -1,98 +1,113 @@
-// Program.cs
-
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 using QuantIA.Data;
+using QuantIA.Interface;
 using QuantIA.Services;
 using System.Text.Json.Serialization;
-using QuantIA.Interface;
 
-// =====================================================================
-// BUILDER — fase de configuração
-// Aqui registramos todos os serviços que a aplicação vai usar.
-// =====================================================================
 var builder = WebApplication.CreateBuilder(args);
-
-// Registra os Controllers no sistema de Injeção de Dependência.
-// Sem isso, o .NET não sabe que existem Controllers na aplicação.
-builder.Services.AddControllers();
-
-// Registra o AppDbContext no sistema de Injeção de Dependência.
-// Isso permite que os Controllers recebam o AppDbContext automaticamente
-// no construtor (isso é chamado de Injeção de Dependência).
-//
-// options.UseNpgsql(...) diz ao EF para usar o PostgreSQL como banco.
-// builder.Configuration.GetConnectionString("DefaultConnection") lê
-// a connection string do appsettings.json.
-builder.Services.AddDbContextFactory<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-builder.Services.AddSingleton<ITransactionService, TransactionService>(); 
-
-builder.Services.AddScoped<IAccountService, AccountService>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
     });
 
-builder.Services.AddControllers()
-    .AddJsonOptions(options => {
-        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
-    });
+builder.Services.AddDbContextFactory<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<KeycloakAdminService>();
+builder.Services.AddScoped<ProfileService>();
+
+builder.Services.AddScoped<ITransactionService, TransactionService>();
+builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
-
 builder.Services.AddScoped<ITransactionTypeService, TransactionTypeService>();
-
 builder.Services.AddScoped<IMonthlyBudgetService, MonthlyBudgetService>();
-
 builder.Services.AddScoped<IAiConfigService, AiConfigService>();
 builder.Services.AddScoped<IAiChatService, AiChatService>();
 builder.Services.AddHttpClient();
 
-// Adiciona o Swagger/OpenAPI — interface web para testar a API.
-// AddEndpointsApiExplorer() descobre os endpoints disponíveis.
-// AddSwaggerGen() gera a documentação interativa da API.
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+// ── Autenticação JWT via Keycloak ─────────────────────────────────────
+var keycloakClientId = builder.Configuration["Keycloak:ClientId"] ?? "quantia-frontend";
 
-// Configura CORS (Cross-Origin Resource Sharing).
-// Isso permite que o frontend React (que roda em outra porta)
-// faça requisições para a API sem ser bloqueado pelo navegador.
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("PermitirTudo", policy =>
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
-        policy.AllowAnyOrigin()   // Permite qualquer origem (domínio/porta)
-              .AllowAnyMethod()   // Permite GET, POST, PUT, DELETE, etc.
-              .AllowAnyHeader();  // Permite qualquer cabeçalho HTTP
+        options.Authority          = builder.Configuration["Keycloak:Authority"];
+        options.RequireHttpsMetadata = false;
+        options.MapInboundClaims   = false;
+        options.TokenValidationParameters = new()
+        {
+            ValidateAudience = false, // Keycloak não inclui o clientId no aud por padrão
+        };
+        // Valida que o token foi emitido especificamente para este client (azp)
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = ctx =>
+            {
+                var azp = ctx.Principal?.FindFirst("azp")?.Value;
+                if (azp != keycloakClientId)
+                    ctx.Fail($"Token não autorizado para este cliente. azp={azp}");
+                return Task.CompletedTask;
+            }
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "QuantIA API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name        = "Authorization",
+        Type        = SecuritySchemeType.Http,
+        Scheme      = "Bearer",
+        BearerFormat = "JWT",
+        In          = ParameterLocation.Header,
+        Description = "Token JWT obtido via Keycloak. Formato: Bearer {token}"
+    });
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
+            Array.Empty<string>()
+        }
     });
 });
 
-// =====================================================================
-// APP — fase de execução
-// Aqui configuramos o pipeline de middlewares (o que acontece com cada
-// requisição HTTP antes de chegar no Controller).
-// =====================================================================
+// ── CORS restrito ao domínio do frontend ─────────────────────────────
+var frontendUrl = builder.Configuration["Frontend:Url"] ?? "http://localhost:5173";
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+    {
+        policy.WithOrigins(frontendUrl)
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 var app = builder.Build();
 
-// Ativa o Swagger apenas no ambiente de desenvolvimento.
-// Em produção, a documentação seria protegida ou desativada.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// Ativa o CORS com a política que definimos acima.
-// IMPORTANTE: deve vir ANTES do MapControllers().
-app.UseCors("PermitirTudo");
-
-// Ativa o roteamento de requisições para os Controllers.
-// É aqui que o .NET olha para a URL da requisição e decide
-// qual Controller e qual método deve ser chamado.
+app.UseCors("Frontend");
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
-
-// Inicia a aplicação e fica escutando requisições HTTP.
 app.Run();

@@ -1,35 +1,20 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using QuantIA.Interface;
 using QuantIA.Models;
-using QuantIA.Services;
 
 namespace QuantIA.Controllers;
 
-[ApiController]
+[Authorize]
 [Route("api/[controller]")]
-public class CategoriesController : ControllerBase
+public class CategoriesController : AuthenticatedControllerBase
 {
     private readonly ICategoryService _service;
 
-    public CategoriesController(ICategoryService service)
+    public CategoriesController(ICategoryService service, ICurrentUserService currentUserService)
+        : base(currentUserService)
     {
         _service = service;
-    }
-
-    [HttpGet]
-    public async Task<IActionResult> Get()
-    {
-        return Ok(await _service.Listar());
-    }
-
-    [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(int id)
-    {
-        var data = await _service.BuscarPorId(id);
-        
-        if (data == null) 
-            return NotFound(new { mensagem = $"Categoria {id} não encontrada." });
-
-        return Ok(data);
     }
 
     [HttpPost]
@@ -37,33 +22,50 @@ public class CategoriesController : ControllerBase
     {
         try
         {
-            var result = await _service.Criar(category);
-            return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+            var userId = await GetCurrentUserIdAsync();
+            return Ok(await _service.Criar(category, userId));
         }
-        catch (Exception ex)
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Get()
+    {
+        try
         {
-            return BadRequest(new { mensagem = ex.Message });
+            var userId = await GetCurrentUserIdAsync();
+            return Ok(await _service.Listar(userId));
         }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        try
+        {
+            var userId = await GetCurrentUserIdAsync();
+            var data = await _service.BuscarPorId(id, userId);
+            if (data == null) return NotFound();
+            return Ok(data);
+        }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, Category category)
     {
-        if (id != category.Id)
-            return BadRequest(new { mensagem = "IDs não coincidem." });
-
         try
         {
-            await _service.Atualizar(id, category);
+            var userId = await GetCurrentUserIdAsync();
+            await _service.Atualizar(id, category, userId);
             return NoContent();
         }
-        catch (Exception ex)
-        {
-            if (ex.Message == "Categoria não encontrada.") 
-                return NotFound();
-                
-            return BadRequest(new { mensagem = ex.Message });
-        }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 
     [HttpDelete("{id}")]
@@ -71,15 +73,11 @@ public class CategoriesController : ControllerBase
     {
         try
         {
-            await _service.Deletar(id);
+            var userId = await GetCurrentUserIdAsync();
+            await _service.Deletar(id, userId);
             return NoContent();
         }
-        catch (Exception ex)
-        {
-            if (ex.Message == "Categoria não encontrada.") 
-                return NotFound();
-                
-            return BadRequest(new { mensagem = ex.Message }); 
-        }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 }

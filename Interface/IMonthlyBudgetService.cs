@@ -5,11 +5,11 @@ namespace QuantIA.Interface;
 
 public interface IMonthlyBudgetService
 {
-    Task<MonthlyBudget> Criar(MonthlyBudget request);
-    Task<List<MonthlyBudget>> Listar();
-    Task<MonthlyBudget?> BuscarPorId(int id);
-    Task<MonthlyBudget?> BuscarPorMesAno(int month, int year);
-    Task Atualizar(int id, MonthlyBudget request);
-    Task Deletar(int id);
-    Task<BudgetReportDto> GerarRelatorio(int month, int year);
+    Task<MonthlyBudget> Criar(MonthlyBudget request, int userId);
+    Task<List<MonthlyBudget>> Listar(int userId);
+    Task<MonthlyBudget?> BuscarPorId(int id, int userId);
+    Task<MonthlyBudget?> BuscarPorMesAno(int month, int year, int userId);
+    Task Atualizar(int id, MonthlyBudget request, int userId);
+    Task Deletar(int id, int userId);
+    Task<BudgetReportDto> GerarRelatorio(int month, int year, int userId);
 }

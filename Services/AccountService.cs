@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using QuantIA.Data;
 using QuantIA.Interface;
 using QuantIA.Models;
@@ -14,73 +14,57 @@ public class AccountService : IAccountService
         _contextFactory = contextFactory;
     }
 
-    public async Task<Account> Criar(Account request)
+    public async Task<Account> Criar(Account request, int userId)
     {
-        using var _context = await _contextFactory.CreateDbContextAsync();
-
+        await using var _context = await _contextFactory.CreateDbContextAsync();
 
         if (string.IsNullOrWhiteSpace(request.Name))
             throw new Exception("Nome da conta é obrigatório.");
-
         if (string.IsNullOrWhiteSpace(request.Color))
             throw new Exception("Cor da conta é obrigatória.");
 
         if (request.HasCreditCard)
         {
-            if (request.CreditCardClosingDay == null ||
-                request.CreditCardClosingDay < 1 ||
-                request.CreditCardClosingDay > 31)
-            {
+            if (request.CreditCardClosingDay == null || request.CreditCardClosingDay < 1 || request.CreditCardClosingDay > 31)
                 throw new Exception("Dia de fechamento do cartão inválido.");
-            }
         }
         else
         {
             request.CreditCardClosingDay = null;
         }
 
+        request.UserId = userId;
         _context.Accounts.Add(request);
         await _context.SaveChangesAsync();
-
         return request;
     }
 
-    public async Task<List<Account>> Listar()
+    public async Task<List<Account>> Listar(int userId)
     {
-        using var _context = await _contextFactory.CreateDbContextAsync();
-
-        return await _context.Accounts.ToListAsync();
+        await using var _context = await _contextFactory.CreateDbContextAsync();
+        return await _context.Accounts.Where(a => a.UserId == userId).ToListAsync();
     }
 
-    public async Task<Account?> BuscarPorId(int id)
+    public async Task<Account?> BuscarPorId(int id, int userId)
     {
-        using var _context = await _contextFactory.CreateDbContextAsync();
-
-        return await _context.Accounts
-            .FirstOrDefaultAsync(a => a.Id == id);
+        await using var _context = await _contextFactory.CreateDbContextAsync();
+        return await _context.Accounts.FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId);
     }
 
-    public async Task Atualizar(int id, Account request)
+    public async Task Atualizar(int id, Account request, int userId)
     {
-        using var _context = await _contextFactory.CreateDbContextAsync();
+        await using var _context = await _contextFactory.CreateDbContextAsync();
 
-        var account = await _context.Accounts.FindAsync(id)
+        var account = await _context.Accounts.FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId)
             ?? throw new Exception("Conta não encontrada.");
 
-        if (string.IsNullOrWhiteSpace(request.Name))
-            throw new Exception("Nome da conta é obrigatório.");
-
-        if (string.IsNullOrWhiteSpace(request.Color))
-            throw new Exception("Cor da conta é obrigatória.");
+        if (string.IsNullOrWhiteSpace(request.Name)) throw new Exception("Nome da conta é obrigatório.");
+        if (string.IsNullOrWhiteSpace(request.Color)) throw new Exception("Cor da conta é obrigatória.");
 
         if (request.HasCreditCard)
         {
-            if (request.CreditCardClosingDay == null ||
-                request.CreditCardClosingDay < 1 ||
-                request.CreditCardClosingDay > 31)
-            {
+            if (request.CreditCardClosingDay == null || request.CreditCardClosingDay < 1 || request.CreditCardClosingDay > 31)
                 throw new Exception("Dia de fechamento inválido.");
-            }
         }
         else
         {
@@ -93,22 +77,18 @@ public class AccountService : IAccountService
         account.Color = request.Color;
         account.HasCreditCard = request.HasCreditCard;
         account.CreditCardClosingDay = request.CreditCardClosingDay;
-
         await _context.SaveChangesAsync();
     }
 
-    public async Task Deletar(int id)
+    public async Task Deletar(int id, int userId)
     {
-        using var _context = await _contextFactory.CreateDbContextAsync();
+        await using var _context = await _contextFactory.CreateDbContextAsync();
 
-        var account = await _context.Accounts.FindAsync(id)
+        var account = await _context.Accounts.FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId)
             ?? throw new Exception("Conta não encontrada.");
-        
-        var hasTransactions = await _context.Transactions
-            .AnyAsync(t => t.AccountId == id);
 
-        if (hasTransactions)
-            throw new Exception("Não é possível deletar conta com transações.");
+        var hasTransactions = await _context.Transactions.AnyAsync(t => t.AccountId == id);
+        if (hasTransactions) throw new Exception("Não é possível deletar conta com transações.");
 
         _context.Accounts.Remove(account);
         await _context.SaveChangesAsync();

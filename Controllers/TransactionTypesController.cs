@@ -1,32 +1,20 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using QuantIA.Interface;
 using QuantIA.Models;
 
 namespace QuantIA.Controllers;
 
-[ApiController]
+[Authorize]
 [Route("api/[controller]")]
-public class TransactionTypesController : ControllerBase
+public class TransactionTypesController : AuthenticatedControllerBase
 {
     private readonly ITransactionTypeService _service;
 
-    public TransactionTypesController(ITransactionTypeService service)
+    public TransactionTypesController(ITransactionTypeService service, ICurrentUserService currentUserService)
+        : base(currentUserService)
     {
         _service = service;
-    }
-
-    [HttpPost]
-    public async Task<IActionResult> Create(TransactionType request)
-    {
-        try
-        {
-            var result = await _service.Criar(request);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
     }
 
     [HttpGet]
@@ -34,12 +22,11 @@ public class TransactionTypesController : ControllerBase
     {
         try
         {
-            return Ok(await _service.Listar());
+            var userId = await GetCurrentUserIdAsync();
+            return Ok(await _service.Listar(userId));
         }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 
     [HttpGet("{id}")]
@@ -47,15 +34,25 @@ public class TransactionTypesController : ControllerBase
     {
         try
         {
-            var data = await _service.BuscarPorId(id);
+            var userId = await GetCurrentUserIdAsync();
+            var data   = await _service.BuscarPorId(id, userId);
             if (data == null) return NotFound();
-
             return Ok(data);
         }
-        catch (Exception ex)
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Create(TransactionType request)
+    {
+        try
         {
-            return BadRequest(new { message = ex.Message });
+            var userId = await GetCurrentUserIdAsync();
+            return Ok(await _service.Criar(request, userId));
         }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 
     [HttpPut("{id}")]
@@ -63,13 +60,12 @@ public class TransactionTypesController : ControllerBase
     {
         try
         {
-            await _service.Atualizar(id, request);
+            var userId = await GetCurrentUserIdAsync();
+            await _service.Atualizar(id, request, userId);
             return NoContent();
         }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 
     [HttpDelete("{id}")]
@@ -77,12 +73,11 @@ public class TransactionTypesController : ControllerBase
     {
         try
         {
-            await _service.Deletar(id);
+            var userId = await GetCurrentUserIdAsync();
+            await _service.Deletar(id, userId);
             return NoContent();
         }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 }
