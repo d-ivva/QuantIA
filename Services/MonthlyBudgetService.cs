@@ -110,6 +110,9 @@ public class MonthlyBudgetService : IMonthlyBudgetService
         await _context.SaveChangesAsync();
     }
 
+    // ==========================================
+    // MÉTODO ORIGINAL RESTAURADO
+    // ==========================================
     public async Task<BudgetReportDto> GerarRelatorio(int month, int year)
     {
         using var _context = await _contextFactory.CreateDbContextAsync();
@@ -160,5 +163,106 @@ public class MonthlyBudgetService : IMonthlyBudgetService
             Year = year,
             ByCategory = byCategory
         };
+    }
+
+    // ==========================================
+    // NOVOS MÉTODOS DO DASHBOARD AVANÇADO
+    // ==========================================
+    public async Task<object> GetDashboardData(int month, int year)
+    {
+        using var _context = await _contextFactory.CreateDbContextAsync();
+
+        var startDate = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var endDate = startDate.AddMonths(1);
+
+        var transactions = await _context.Transactions
+            .Include(t => t.Category)
+            .Include(t => t.Account)
+            .Where(t => t.TransactionDate >= startDate && t.TransactionDate < endDate)
+            .ToListAsync();
+
+        var totalIncome = transactions.Where(t => t.Direction == TransactionDirection.income).Sum(t => t.Amount);
+        var totalExpense = transactions.Where(t => t.Direction == TransactionDirection.expense).Sum(t => t.Amount);
+        var netBalance = totalIncome - totalExpense;
+
+        var mostMovedAccount = transactions
+            .GroupBy(t => t.Account?.Name)
+            .OrderByDescending(g => g.Count())
+            .Select(g => g.Key)
+            .FirstOrDefault() ?? "Nenhuma";
+
+        var daysInMonth = DateTime.DaysInMonth(year, month);
+        var dailyFlow = Enumerable.Range(1, daysInMonth).Select(day =>
+        {
+            var dayTransactions = transactions.Where(t => t.TransactionDate.Day == day).ToList();
+            var income = dayTransactions.Where(t => t.Direction == TransactionDirection.income).Sum(t => t.Amount);
+            var expense = dayTransactions.Where(t => t.Direction == TransactionDirection.expense).Sum(t => t.Amount);
+            return new { Day = day, Income = income, Expense = expense };
+        }).ToList();
+
+        var byCategory = transactions
+            .Where(t => t.Direction == TransactionDirection.expense)
+            .GroupBy(t => new { Name = t.Category?.Name ?? "Sem categoria", Color = t.Category?.Color ?? "#64748b" })
+            .Select(g => new
+            {
+                CategoryName = g.Key.Name,
+                Color = g.Key.Color,
+                Amount = g.Sum(t => t.Amount),
+                Percentage = totalExpense > 0 ? Math.Round((double)(g.Sum(t => t.Amount) / totalExpense * 100), 1) : 0
+            })
+            .OrderByDescending(c => c.Amount)
+            .ToList();
+
+        var budget = await _context.MonthlyBudgets.FirstOrDefaultAsync(b => b.Month == month && b.Year == year);
+
+        return new
+        {
+            TotalIncome = totalIncome,
+            TotalExpense = totalExpense,
+            NetBalance = netBalance,
+            MostMovedAccount = mostMovedAccount,
+            DailyFlow = dailyFlow,
+            ByCategory = byCategory,
+            BudgetAmount = budget?.Amount ?? 0
+        };
+    }
+
+    public async Task<object> GetAnnualReport(int year)
+    {
+        using var _context = await _contextFactory.CreateDbContextAsync();
+
+        var startDate = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var endDate = new DateTime(year + 1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var transactions = await _context.Transactions
+            .Where(t => t.TransactionDate >= startDate && t.TransactionDate < endDate)
+            .ToListAsync();
+
+        var budgets = await _context.MonthlyBudgets
+            .Where(b => b.Year == year)
+            .ToListAsync();
+
+        var monthsData = Enumerable.Range(1, 12).Select(month =>
+        {
+            var monthTransactions = transactions.Where(t => t.TransactionDate.Month == month).ToList();
+            var income = monthTransactions.Where(t => t.Direction == TransactionDirection.income).Sum(t => t.Amount);
+            var expense = monthTransactions.Where(t => t.Direction == TransactionDirection.expense).Sum(t => t.Amount);
+            var budget = budgets.FirstOrDefault(b => b.Month == month)?.Amount ?? 0;
+
+            var netBalance = income - expense;
+            var differenceToBudget = budget > 0 ? budget - expense : netBalance;
+
+            var monthName = new DateTime(year, month, 1).ToString("MMM", new System.Globalization.CultureInfo("pt-BR"));
+
+            return new
+            {
+                Month = month,
+                MonthName = monthName.ToUpper().Replace(".", ""),
+                Balance = netBalance,
+                Performance = differenceToBudget
+            };
+        }).ToList();
+
+        return monthsData;
     }
 }
