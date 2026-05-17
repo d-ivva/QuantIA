@@ -110,9 +110,6 @@ public class MonthlyBudgetService : IMonthlyBudgetService
         await _context.SaveChangesAsync();
     }
 
-    // ==========================================
-    // MÉTODO ORIGINAL RESTAURADO
-    // ==========================================
     public async Task<BudgetReportDto> GerarRelatorio(int month, int year)
     {
         using var _context = await _contextFactory.CreateDbContextAsync();
@@ -165,9 +162,6 @@ public class MonthlyBudgetService : IMonthlyBudgetService
         };
     }
 
-    // ==========================================
-    // NOVOS MÉTODOS DO DASHBOARD AVANÇADO
-    // ==========================================
     public async Task<object> GetDashboardData(int month, int year)
     {
         using var _context = await _contextFactory.CreateDbContextAsync();
@@ -192,13 +186,25 @@ public class MonthlyBudgetService : IMonthlyBudgetService
             .FirstOrDefault() ?? "Nenhuma";
 
         var daysInMonth = DateTime.DaysInMonth(year, month);
-        var dailyFlow = Enumerable.Range(1, daysInMonth).Select(day =>
+        var dailyFlow = new List<object>();
+        decimal runningBalance = 0;
+
+        for (int day = 1; day <= daysInMonth; day++)
         {
             var dayTransactions = transactions.Where(t => t.TransactionDate.Day == day).ToList();
             var income = dayTransactions.Where(t => t.Direction == TransactionDirection.income).Sum(t => t.Amount);
             var expense = dayTransactions.Where(t => t.Direction == TransactionDirection.expense).Sum(t => t.Amount);
-            return new { Day = day, Income = income, Expense = expense };
-        }).ToList();
+            
+            runningBalance += (income - expense);
+
+            dailyFlow.Add(new 
+            { 
+                Day = day, 
+                Income = income, 
+                Expense = expense,
+                Balance = runningBalance
+            });
+        }
 
         var byCategory = transactions
             .Where(t => t.Direction == TransactionDirection.expense)
