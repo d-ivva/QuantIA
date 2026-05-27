@@ -1,16 +1,18 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using QuantIA.Interface;
 using QuantIA.Models;
 
 namespace QuantIA.Controllers;
 
-[ApiController]
+[Authorize]
 [Route("api/[controller]")]
-public class MonthlyBudgetsController : ControllerBase
+public class MonthlyBudgetsController : AuthenticatedControllerBase
 {
     private readonly IMonthlyBudgetService _service;
 
-    public MonthlyBudgetsController(IMonthlyBudgetService service)
+    public MonthlyBudgetsController(IMonthlyBudgetService service, ICurrentUserService currentUserService)
+        : base(currentUserService)
     {
         _service = service;
     }
@@ -18,101 +20,56 @@ public class MonthlyBudgetsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(MonthlyBudget request)
     {
-        try
-        {
-            var result = await _service.Criar(request);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        try { var userId = await GetCurrentUserIdAsync(); return Ok(await _service.Criar(request, userId)); }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 
     [HttpGet]
     public async Task<IActionResult> Get()
     {
-        try
-        {
-            return Ok(await _service.Listar());
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        try { var userId = await GetCurrentUserIdAsync(); return Ok(await _service.Listar(userId)); }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
-        try
-        {
-            var data = await _service.BuscarPorId(id);
-            if (data == null) return NotFound();
-
-            return Ok(data);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        try { var userId = await GetCurrentUserIdAsync(); var data = await _service.BuscarPorId(id, userId); if (data == null) return NotFound(); return Ok(data); }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 
     [HttpGet("{month}/{year}")]
     public async Task<IActionResult> GetByMesAno(int month, int year)
     {
-        try
-        {
-            var data = await _service.BuscarPorMesAno(month, year);
-            if (data == null) return NotFound();
-
-            return Ok(data);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        try { var userId = await GetCurrentUserIdAsync(); var data = await _service.BuscarPorMesAno(month, year, userId); if (data == null) return NotFound(); return Ok(data); }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 
     [HttpGet("report/{month}/{year}")]
     public async Task<IActionResult> GetReport(int month, int year)
     {
-        try
-        {
-            var data = await _service.GerarRelatorio(month, year);
-            return Ok(data);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        try { var userId = await GetCurrentUserIdAsync(); return Ok(await _service.GerarRelatorio(month, year, userId)); }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, MonthlyBudget request)
     {
-        try
-        {
-            await _service.Atualizar(id, request);
-            return NoContent();
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        try { var userId = await GetCurrentUserIdAsync(); await _service.Atualizar(id, request, userId); return NoContent(); }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-        try
-        {
-            await _service.Deletar(id);
-            return NoContent();
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        try { var userId = await GetCurrentUserIdAsync(); await _service.Deletar(id, userId); return NoContent(); }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 }

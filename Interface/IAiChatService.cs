@@ -4,8 +4,8 @@ namespace QuantIA.Interface;
 
 public interface IAiChatService
 {
-    Task<ChatResponseDto> Conversar(ChatRequestDto request);
-    Task<List<string>> ListarSessoes();
-    Task<List<object>> BuscarHistorico(string sessionId);
-    Task LimparHistorico(string sessionId);
+    Task<ChatResponseDto> Conversar(ChatRequestDto request, int userId);
+    Task<List<string>> ListarSessoes(int userId);
+    Task<List<object>> BuscarHistorico(string sessionId, int userId);
+    Task LimparHistorico(string sessionId, int userId);
 }

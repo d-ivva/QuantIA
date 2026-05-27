@@ -15,89 +15,63 @@ public class AiConfigService : IAiConfigService
         _contextFactory = contextFactory;
     }
 
-    public async Task<AiConfigResponseDto> Criar(AiConfigCreateDto request)
+    public async Task<AiConfigResponseDto> Criar(AiConfigCreateDto request, int userId)
     {
-        using var _context = await _contextFactory.CreateDbContextAsync();
+        await using var _context = await _contextFactory.CreateDbContextAsync();
 
-        if (string.IsNullOrWhiteSpace(request.ApiKey))
-            throw new ApplicationException("A chave de API é obrigatória.");
+        if (string.IsNullOrWhiteSpace(request.ApiKey)) throw new ApplicationException("A chave de API é obrigatória.");
 
-        var existe = await _context.AiConfigs
-            .AnyAsync(c => c.Provider == request.Provider);
+        var existe = await _context.AiConfigs.AnyAsync(c => c.UserId == userId && c.Provider == request.Provider);
+        if (existe) throw new ApplicationException($"Já existe uma configuração de {request.Provider}. Atualize a existente.");
 
-        if (existe)
-            throw new ApplicationException($"Já existe uma configuração de {request.Provider}. Atualize a existente.");
-
-        var config = new AiConfig
-        {
-            Provider = request.Provider,
-            ApiKey = request.ApiKey,
-            IsActive = true
-        };
-
+        var config = new AiConfig { UserId = userId, Provider = request.Provider, ApiKey = request.ApiKey, IsActive = true };
         _context.AiConfigs.Add(config);
         await _context.SaveChangesAsync();
-
         return ToResponseDto(config);
     }
 
-    public async Task<List<AiConfigResponseDto>> Listar()
+    public async Task<List<AiConfigResponseDto>> Listar(int userId)
     {
-        using var _context = await _contextFactory.CreateDbContextAsync();
-
-        var configs = await _context.AiConfigs
-            .OrderBy(c => c.Provider)
-            .ToListAsync();
-
+        await using var _context = await _contextFactory.CreateDbContextAsync();
+        var configs = await _context.AiConfigs.Where(c => c.UserId == userId).OrderBy(c => c.Provider).ToListAsync();
         return configs.Select(ToResponseDto).ToList();
     }
 
-    public async Task Atualizar(int id, AiConfigCreateDto request)
+    public async Task Atualizar(int id, AiConfigCreateDto request, int userId)
     {
-        using var _context = await _contextFactory.CreateDbContextAsync();
+        await using var _context = await _contextFactory.CreateDbContextAsync();
 
-        var config = await _context.AiConfigs.FindAsync(id)
+        var config = await _context.AiConfigs.FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId)
             ?? throw new ApplicationException("Configuração não encontrada.");
 
-        if (string.IsNullOrWhiteSpace(request.ApiKey))
-            throw new ApplicationException("A chave de API é obrigatória.");
+        if (string.IsNullOrWhiteSpace(request.ApiKey)) throw new ApplicationException("A chave de API é obrigatória.");
 
         config.ApiKey = request.ApiKey;
         config.IsActive = true;
-
         await _context.SaveChangesAsync();
     }
 
-    public async Task Deletar(int id)
+    public async Task Deletar(int id, int userId)
     {
-        using var _context = await _contextFactory.CreateDbContextAsync();
+        await using var _context = await _contextFactory.CreateDbContextAsync();
 
-        var config = await _context.AiConfigs.FindAsync(id)
+        var config = await _context.AiConfigs.FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId)
             ?? throw new ApplicationException("Configuração não encontrada.");
 
         _context.AiConfigs.Remove(config);
         await _context.SaveChangesAsync();
     }
 
-    public async Task<bool> TemConfiguracao()
+    public async Task<bool> TemConfiguracao(int userId)
     {
-        using var _context = await _contextFactory.CreateDbContextAsync();
-
-        return await _context.AiConfigs.AnyAsync(c => c.IsActive);
+        await using var _context = await _contextFactory.CreateDbContextAsync();
+        return await _context.AiConfigs.AnyAsync(c => c.UserId == userId && c.IsActive);
     }
 
     private static AiConfigResponseDto ToResponseDto(AiConfig config) => new()
     {
-        Id = config.Id,
-        Provider = config.Provider,
-        ApiKeyPreview = MaskApiKey(config.ApiKey),
-        IsActive = config.IsActive,
-        CreatedAt = config.CreatedAt
+        Id = config.Id, Provider = config.Provider,
+        ApiKeyPreview = config.ApiKey.Length <= 8 ? "****" : $"****{config.ApiKey[^4..]}",
+        IsActive = config.IsActive, CreatedAt = config.CreatedAt
     };
-
-    private static string MaskApiKey(string key)
-    {
-        if (key.Length <= 8) return "****";
-        return $"****{key[^4..]}";
-    }
 }
