@@ -12,4 +12,9 @@ public interface IMonthlyBudgetService
     Task Atualizar(int id, MonthlyBudget request, int userId);
     Task Deletar(int id, int userId);
     Task<BudgetReportDto> GerarRelatorio(int month, int year, int userId);
+
+    
+    // Nossos novos métodos
+    Task<object> GetDashboardData(int month, int year);
+    Task<object> GetAnnualReport(int year);
 }
