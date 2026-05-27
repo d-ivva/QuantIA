@@ -1,15 +1,18 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using QuantIA.Interface;
 
 namespace QuantIA.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
-public class ReportsController : ControllerBase
+public class ReportsController : AuthenticatedControllerBase
 {
     private readonly IMonthlyBudgetService _budgetService;
 
-    public ReportsController(IMonthlyBudgetService budgetService)
+    public ReportsController(IMonthlyBudgetService budgetService, ICurrentUserService currentUserService)
+        : base(currentUserService)
     {
         _budgetService = budgetService;
     }
@@ -19,9 +22,11 @@ public class ReportsController : ControllerBase
     {
         try
         {
-            var data = await _budgetService.GetDashboardData(month, year);
+            var userId = await GetCurrentUserIdAsync();
+            var data = await _budgetService.GetDashboardData(month, year, userId);
             return Ok(data);
         }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
         catch (Exception ex)
         {
             return BadRequest(new { message = ex.Message });
@@ -33,9 +38,11 @@ public class ReportsController : ControllerBase
     {
         try
         {
-            var data = await _budgetService.GetAnnualReport(year);
+            var userId = await GetCurrentUserIdAsync();
+            var data = await _budgetService.GetAnnualReport(year, userId);
             return Ok(data);
         }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
         catch (Exception ex)
         {
             return BadRequest(new { message = ex.Message });

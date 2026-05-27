@@ -14,7 +14,6 @@ public interface IMonthlyBudgetService
     Task<BudgetReportDto> GerarRelatorio(int month, int year, int userId);
 
     
-    // Nossos novos métodos
-    Task<object> GetDashboardData(int month, int year);
-    Task<object> GetAnnualReport(int year);
+    Task<object> GetDashboardData(int month, int year, int userId);
+    Task<object> GetAnnualReport(int year, int userId);
 }

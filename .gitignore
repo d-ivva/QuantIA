@@ -486,3 +486,6 @@ $RECYCLE.BIN/
 appsettings.Development.json
 
 appsettings.json
+
+# Claude Code
+CLAUDE.md

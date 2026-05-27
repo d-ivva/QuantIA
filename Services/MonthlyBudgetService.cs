@@ -111,9 +111,9 @@ public class MonthlyBudgetService : IMonthlyBudgetService
         return new BudgetReportDto { HasBudget = budget != null, BudgetAmount = budgetAmount, SpentAmount = spentAmount, RemainingAmount = remaining, PercentageUsed = percentage, Month = month, Year = year, ByCategory = byCategory };
     }
 
-    public async Task<object> GetDashboardData(int month, int year)
+    public async Task<object> GetDashboardData(int month, int year, int userId)
     {
-        using var _context = await _contextFactory.CreateDbContextAsync();
+        await using var _context = await _contextFactory.CreateDbContextAsync();
 
         var startDate = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
         var endDate = startDate.AddMonths(1);
@@ -121,7 +121,7 @@ public class MonthlyBudgetService : IMonthlyBudgetService
         var transactions = await _context.Transactions
             .Include(t => t.Category)
             .Include(t => t.Account)
-            .Where(t => t.TransactionDate >= startDate && t.TransactionDate < endDate)
+            .Where(t => t.UserId == userId && t.TransactionDate >= startDate && t.TransactionDate < endDate)
             .ToListAsync();
 
         var totalIncome = transactions.Where(t => t.Direction == TransactionDirection.income).Sum(t => t.Amount);
@@ -168,7 +168,7 @@ public class MonthlyBudgetService : IMonthlyBudgetService
             .OrderByDescending(c => c.Amount)
             .ToList();
 
-        var budget = await _context.MonthlyBudgets.FirstOrDefaultAsync(b => b.Month == month && b.Year == year);
+        var budget = await _context.MonthlyBudgets.FirstOrDefaultAsync(b => b.UserId == userId && b.Month == month && b.Year == year);
 
         return new
         {
@@ -182,19 +182,19 @@ public class MonthlyBudgetService : IMonthlyBudgetService
         };
     }
 
-    public async Task<object> GetAnnualReport(int year)
+    public async Task<object> GetAnnualReport(int year, int userId)
     {
-        using var _context = await _contextFactory.CreateDbContextAsync();
+        await using var _context = await _contextFactory.CreateDbContextAsync();
 
         var startDate = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         var endDate = new DateTime(year + 1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         var transactions = await _context.Transactions
-            .Where(t => t.TransactionDate >= startDate && t.TransactionDate < endDate)
+            .Where(t => t.UserId == userId && t.TransactionDate >= startDate && t.TransactionDate < endDate)
             .ToListAsync();
 
         var budgets = await _context.MonthlyBudgets
-            .Where(b => b.Year == year)
+            .Where(b => b.UserId == userId && b.Year == year)
             .ToListAsync();
 
         var monthsData = Enumerable.Range(1, 12).Select(month =>
