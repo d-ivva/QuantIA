@@ -18,12 +18,12 @@ public class ReportsController : AuthenticatedControllerBase
     }
 
     [HttpGet("dashboard/{month}/{year}")]
-    public async Task<IActionResult> GetDashboardData(int month, int year)
+    public async Task<IActionResult> GetDashboardData(int month, int year, [FromQuery] int? accountId = null)
     {
         try
         {
             var userId = await GetCurrentUserIdAsync();
-            var data = await _budgetService.GetDashboardData(month, year, userId);
+            var data = await _budgetService.GetDashboardData(month, year, userId, accountId);
             return Ok(data);
         }
         catch (UnauthorizedAccessException) { return Unauthorized(); }
