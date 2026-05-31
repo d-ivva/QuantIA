@@ -34,12 +34,12 @@ public class ReportsController : AuthenticatedControllerBase
     }
 
     [HttpGet("annual/{year}")]
-    public async Task<IActionResult> GetAnnualReport(int year)
+    public async Task<IActionResult> GetAnnualReport(int year, [FromQuery] int? accountId = null)
     {
         try
         {
             var userId = await GetCurrentUserIdAsync();
-            var data = await _budgetService.GetAnnualReport(year, userId);
+            var data = await _budgetService.GetAnnualReport(year, userId, accountId);
             return Ok(data);
         }
         catch (UnauthorizedAccessException) { return Unauthorized(); }

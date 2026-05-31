@@ -15,5 +15,5 @@ public interface IMonthlyBudgetService
 
     
     Task<object> GetDashboardData(int month, int year, int userId, int? accountId = null);
-    Task<object> GetAnnualReport(int year, int userId);
+    Task<object> GetAnnualReport(int year, int userId, int? accountId = null);
 }
