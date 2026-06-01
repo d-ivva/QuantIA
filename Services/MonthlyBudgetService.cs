@@ -111,7 +111,7 @@ public class MonthlyBudgetService : IMonthlyBudgetService
         return new BudgetReportDto { HasBudget = budget != null, BudgetAmount = budgetAmount, SpentAmount = spentAmount, RemainingAmount = remaining, PercentageUsed = percentage, Month = month, Year = year, ByCategory = byCategory };
     }
 
-    public async Task<object> GetDashboardData(int month, int year, int userId)
+    public async Task<object> GetDashboardData(int month, int year, int userId, int? accountId = null)
     {
         await using var _context = await _contextFactory.CreateDbContextAsync();
 
@@ -121,7 +121,10 @@ public class MonthlyBudgetService : IMonthlyBudgetService
         var transactions = await _context.Transactions
             .Include(t => t.Category)
             .Include(t => t.Account)
-            .Where(t => t.UserId == userId && t.TransactionDate >= startDate && t.TransactionDate < endDate)
+            .Where(t => t.UserId == userId
+                     && t.TransactionDate >= startDate
+                     && t.TransactionDate < endDate
+                     && (accountId == null || t.AccountId == accountId))
             .ToListAsync();
 
         var totalIncome = transactions.Where(t => t.Direction == TransactionDirection.income).Sum(t => t.Amount);
@@ -182,7 +185,7 @@ public class MonthlyBudgetService : IMonthlyBudgetService
         };
     }
 
-    public async Task<object> GetAnnualReport(int year, int userId)
+    public async Task<object> GetAnnualReport(int year, int userId, int? accountId = null)
     {
         await using var _context = await _contextFactory.CreateDbContextAsync();
 
@@ -190,7 +193,10 @@ public class MonthlyBudgetService : IMonthlyBudgetService
         var endDate = new DateTime(year + 1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         var transactions = await _context.Transactions
-            .Where(t => t.UserId == userId && t.TransactionDate >= startDate && t.TransactionDate < endDate)
+            .Where(t => t.UserId == userId
+                     && t.TransactionDate >= startDate
+                     && t.TransactionDate < endDate
+                     && (accountId == null || t.AccountId == accountId))
             .ToListAsync();
 
         var budgets = await _context.MonthlyBudgets
@@ -213,6 +219,9 @@ public class MonthlyBudgetService : IMonthlyBudgetService
             {
                 Month = month,
                 MonthName = monthName.ToUpper().Replace(".", ""),
+                Income = income,
+                Expense = expense,
+                BudgetAmount = budget,
                 Balance = netBalance,
                 Performance = differenceToBudget
             };
