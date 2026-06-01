@@ -38,8 +38,6 @@ public class TransactionTypeService : ITransactionTypeService
             throw new Exception("Nome do tipo de transação é obrigatório.");
         if (!Enum.IsDefined(typeof(TransactionDirection), request.Direction))
             throw new Exception("Direção do tipo de transação é inválida.");
-        if (string.IsNullOrWhiteSpace(request.Icon))
-            throw new Exception("Ícone do tipo de transação é obrigatório.");
 
         request.UserId = userId;
         ctx.TransactionTypes.Add(request);
@@ -59,12 +57,9 @@ public class TransactionTypeService : ITransactionTypeService
             throw new Exception("Nome do tipo de transação é obrigatório.");
         if (!Enum.IsDefined(typeof(TransactionDirection), request.Direction))
             throw new Exception("Direção do tipo de transação é inválida.");
-        if (string.IsNullOrWhiteSpace(request.Icon))
-            throw new Exception("Ícone do tipo de transação é obrigatório.");
 
         tt.Name      = request.Name;
         tt.Direction = request.Direction;
-        tt.Icon      = request.Icon;
         await ctx.SaveChangesAsync();
     }
 
@@ -76,7 +71,8 @@ public class TransactionTypeService : ITransactionTypeService
             .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId)
             ?? throw new Exception("Tipo de transação não encontrado.");
 
-        var hasTransactions = await ctx.Transactions.AnyAsync(t => t.TransactionTypeId == id);
+        // #3: Filter by userId to avoid blocking the owner due to another user's transactions
+        var hasTransactions = await ctx.Transactions.AnyAsync(t => t.TransactionTypeId == id && t.UserId == userId);
         if (hasTransactions)
             throw new Exception("Não é possível excluir tipo associado a transações.");
 

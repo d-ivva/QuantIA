@@ -44,7 +44,18 @@ public class CurrentUserService : ICurrentUserService
                              ?? keycloakId,
             };
             context.Users.Add(user);
-            await context.SaveChangesAsync();
+            // #7: Two concurrent first requests for the same Keycloak user can both reach this point.
+            // Catch the unique-constraint violation and fall back to reading the row the other request created.
+            try
+            {
+                await context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                context.Entry(user).State = EntityState.Detached;
+                user = await context.Users.FirstOrDefaultAsync(u => u.KeycloakId == keycloakId)
+                    ?? throw new InvalidOperationException("Falha ao criar ou localizar usuário.");
+            }
         }
 
         _cachedUserId = user.Id;

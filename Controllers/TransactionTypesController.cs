@@ -35,8 +35,8 @@ public class TransactionTypesController : AuthenticatedControllerBase
         try
         {
             var userId = await GetCurrentUserIdAsync();
-            var data   = await _service.BuscarPorId(id, userId);
-            if (data == null) return NotFound();
+            var data = await _service.BuscarPorId(id, userId);
+            if (data == null) return NotFound(new { message = "Tipo de transação não encontrado." });
             return Ok(data);
         }
         catch (UnauthorizedAccessException) { return Unauthorized(); }
@@ -49,7 +49,8 @@ public class TransactionTypesController : AuthenticatedControllerBase
         try
         {
             var userId = await GetCurrentUserIdAsync();
-            return Ok(await _service.Criar(request, userId));
+            var result = await _service.Criar(request, userId);
+            return Ok(new { message = "Tipo de transação criado com sucesso.", data = result });
         }
         catch (UnauthorizedAccessException) { return Unauthorized(); }
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
@@ -62,7 +63,7 @@ public class TransactionTypesController : AuthenticatedControllerBase
         {
             var userId = await GetCurrentUserIdAsync();
             await _service.Atualizar(id, request, userId);
-            return NoContent();
+            return Ok(new { message = "Tipo de transação atualizado com sucesso." });
         }
         catch (UnauthorizedAccessException) { return Unauthorized(); }
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
@@ -75,7 +76,7 @@ public class TransactionTypesController : AuthenticatedControllerBase
         {
             var userId = await GetCurrentUserIdAsync();
             await _service.Deletar(id, userId);
-            return NoContent();
+            return Ok(new { message = "Tipo de transação excluído com sucesso." });
         }
         catch (UnauthorizedAccessException) { return Unauthorized(); }
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }

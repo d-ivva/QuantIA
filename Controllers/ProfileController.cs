@@ -25,7 +25,7 @@ public class ProfileController : AuthenticatedControllerBase
         {
             var userId  = await GetCurrentUserIdAsync();
             var profile = await _profileService.GetProfileAsync(userId);
-            if (profile == null) return NotFound();
+            if (profile == null) return NotFound(new { message = "Perfil não encontrado." });
             return Ok(profile);
         }
         catch (UnauthorizedAccessException) { return Unauthorized(); }
@@ -43,7 +43,7 @@ public class ProfileController : AuthenticatedControllerBase
             var userId     = await GetCurrentUserIdAsync();
             var keycloakId = GetKeycloakId();
             var profile    = await _profileService.UpdateNameAsync(userId, keycloakId, dto.Name);
-            return Ok(profile);
+            return Ok(new { message = "Perfil atualizado com sucesso.", data = profile });
         }
         catch (UnauthorizedAccessException) { return Unauthorized(); }
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
@@ -57,7 +57,7 @@ public class ProfileController : AuthenticatedControllerBase
             var userId     = await GetCurrentUserIdAsync();
             var keycloakId = GetKeycloakId();
             await _profileService.DeleteAccountAsync(userId, keycloakId);
-            return NoContent();
+            return Ok(new { message = "Conta excluída com sucesso." });
         }
         catch (UnauthorizedAccessException) { return Unauthorized(); }
         catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }

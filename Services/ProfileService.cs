@@ -8,13 +8,16 @@ public class ProfileService
 {
     private readonly IDbContextFactory<AppDbContext> _contextFactory;
     private readonly KeycloakAdminService _keycloakAdmin;
+    private readonly ILogger<ProfileService> _logger;
 
     public ProfileService(
         IDbContextFactory<AppDbContext> contextFactory,
-        KeycloakAdminService keycloakAdmin)
+        KeycloakAdminService keycloakAdmin,
+        ILogger<ProfileService> logger)
     {
         _contextFactory = contextFactory;
         _keycloakAdmin  = keycloakAdmin;
+        _logger         = logger;
     }
 
     // ─── Get profile ──────────────────────────────────────────────────────
@@ -46,9 +49,9 @@ public class ProfileService
         user.Name = name.Trim();
         await ctx.SaveChangesAsync();
 
-        // Best effort: sync name to Keycloak
+        // #4: Best effort — log failures so ops can detect Keycloak drift
         try { await _keycloakAdmin.UpdateUserNameAsync(keycloakId, user.Name); }
-        catch { /* non-critical */ }
+        catch (Exception ex) { _logger.LogWarning(ex, "Falha ao sincronizar nome no Keycloak para {KeycloakId}", keycloakId); }
 
         return new ProfileResponseDto
         {
@@ -86,8 +89,8 @@ public class ProfileService
             throw;
         }
 
-        // Delete from Keycloak after DB is clean (best effort)
+        // #4: Delete from Keycloak after DB is clean — log failures so the orphan can be cleaned up
         try { await _keycloakAdmin.DeleteUserAsync(keycloakId); }
-        catch { /* log in production */ }
+        catch (Exception ex) { _logger.LogError(ex, "Falha ao deletar usuário {KeycloakId} no Keycloak após remoção do DB", keycloakId); }
     }
 }

@@ -23,7 +23,8 @@ public class CategoriesController : AuthenticatedControllerBase
         try
         {
             var userId = await GetCurrentUserIdAsync();
-            return Ok(await _service.Criar(category, userId));
+            var result = await _service.Criar(category, userId);
+            return Ok(new { message = "Categoria criada com sucesso.", data = result });
         }
         catch (UnauthorizedAccessException) { return Unauthorized(); }
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
@@ -48,7 +49,7 @@ public class CategoriesController : AuthenticatedControllerBase
         {
             var userId = await GetCurrentUserIdAsync();
             var data = await _service.BuscarPorId(id, userId);
-            if (data == null) return NotFound();
+            if (data == null) return NotFound(new { message = "Categoria não encontrada." });
             return Ok(data);
         }
         catch (UnauthorizedAccessException) { return Unauthorized(); }
@@ -62,7 +63,7 @@ public class CategoriesController : AuthenticatedControllerBase
         {
             var userId = await GetCurrentUserIdAsync();
             await _service.Atualizar(id, category, userId);
-            return NoContent();
+            return Ok(new { message = "Categoria atualizada com sucesso." });
         }
         catch (UnauthorizedAccessException) { return Unauthorized(); }
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
@@ -75,7 +76,7 @@ public class CategoriesController : AuthenticatedControllerBase
         {
             var userId = await GetCurrentUserIdAsync();
             await _service.Deletar(id, userId);
-            return NoContent();
+            return Ok(new { message = "Categoria excluída com sucesso." });
         }
         catch (UnauthorizedAccessException) { return Unauthorized(); }
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }

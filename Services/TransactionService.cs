@@ -52,6 +52,8 @@ public class TransactionService : ITransactionService
                     IsInstallment = true, InstallmentNumber = i, InstallmentTotal = request.InstallmentTotal, InstallmentGroupId = group.Id
                 });
             }
+            await _context.SaveChangesAsync();
+            return request;
         }
         else
         {
@@ -61,10 +63,16 @@ public class TransactionService : ITransactionService
             request.InstallmentTotal = null;
             request.TransactionDate = DateTime.SpecifyKind(request.TransactionDate, DateTimeKind.Utc);
             _context.Transactions.Add(request);
-        }
+            await _context.SaveChangesAsync();
 
-        await _context.SaveChangesAsync();
-        return request;
+            // #9: Re-query with includes so the POST response shape matches GET (navigation properties populated)
+            return await _context.Transactions
+                .Where(t => t.Id == request.Id)
+                .Include(t => t.Account)
+                .Include(t => t.Category)
+                .Include(t => t.TransactionType)
+                .FirstAsync();
+        }
     }
 
     public async Task<List<Transaction>> Listar(int userId)

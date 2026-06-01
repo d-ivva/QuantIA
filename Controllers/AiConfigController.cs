@@ -20,7 +20,12 @@ public class AiConfigController : AuthenticatedControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(AiConfigCreateDto request)
     {
-        try { var userId = await GetCurrentUserIdAsync(); return Ok(await _service.Criar(request, userId)); }
+        try
+        {
+            var userId = await GetCurrentUserIdAsync();
+            var result = await _service.Criar(request, userId);
+            return Ok(new { message = "Configuração de IA criada com sucesso.", data = result });
+        }
         catch (UnauthorizedAccessException) { return Unauthorized(); }
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
@@ -28,7 +33,11 @@ public class AiConfigController : AuthenticatedControllerBase
     [HttpGet]
     public async Task<IActionResult> Get()
     {
-        try { var userId = await GetCurrentUserIdAsync(); return Ok(await _service.Listar(userId)); }
+        try
+        {
+            var userId = await GetCurrentUserIdAsync();
+            return Ok(await _service.Listar(userId));
+        }
         catch (UnauthorizedAccessException) { return Unauthorized(); }
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
@@ -36,7 +45,11 @@ public class AiConfigController : AuthenticatedControllerBase
     [HttpGet("tem-configuracao")]
     public async Task<IActionResult> TemConfiguracao()
     {
-        try { var userId = await GetCurrentUserIdAsync(); return Ok(new { hasConfig = await _service.TemConfiguracao(userId) }); }
+        try
+        {
+            var userId = await GetCurrentUserIdAsync();
+            return Ok(new { hasConfig = await _service.TemConfiguracao(userId) });
+        }
         catch (UnauthorizedAccessException) { return Unauthorized(); }
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
@@ -44,7 +57,12 @@ public class AiConfigController : AuthenticatedControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, AiConfigCreateDto request)
     {
-        try { var userId = await GetCurrentUserIdAsync(); await _service.Atualizar(id, request, userId); return NoContent(); }
+        try
+        {
+            var userId = await GetCurrentUserIdAsync();
+            await _service.Atualizar(id, request, userId);
+            return Ok(new { message = "Configuração de IA atualizada com sucesso." });
+        }
         catch (UnauthorizedAccessException) { return Unauthorized(); }
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
@@ -52,7 +70,12 @@ public class AiConfigController : AuthenticatedControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-        try { var userId = await GetCurrentUserIdAsync(); await _service.Deletar(id, userId); return NoContent(); }
+        try
+        {
+            var userId = await GetCurrentUserIdAsync();
+            await _service.Deletar(id, userId);
+            return Ok(new { message = "Configuração de IA removida com sucesso." });
+        }
         catch (UnauthorizedAccessException) { return Unauthorized(); }
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }

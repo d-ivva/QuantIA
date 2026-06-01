@@ -20,7 +20,11 @@ public class AiChatController : AuthenticatedControllerBase
     [HttpPost]
     public async Task<IActionResult> Chat(ChatRequestDto request)
     {
-        try { var userId = await GetCurrentUserIdAsync(); return Ok(await _service.Conversar(request, userId)); }
+        try
+        {
+            var userId = await GetCurrentUserIdAsync();
+            return Ok(await _service.Conversar(request, userId));
+        }
         catch (UnauthorizedAccessException) { return Unauthorized(); }
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
@@ -28,7 +32,11 @@ public class AiChatController : AuthenticatedControllerBase
     [HttpGet("sessoes")]
     public async Task<IActionResult> GetSessoes()
     {
-        try { var userId = await GetCurrentUserIdAsync(); return Ok(await _service.ListarSessoes(userId)); }
+        try
+        {
+            var userId = await GetCurrentUserIdAsync();
+            return Ok(await _service.ListarSessoes(userId));
+        }
         catch (UnauthorizedAccessException) { return Unauthorized(); }
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
@@ -36,7 +44,11 @@ public class AiChatController : AuthenticatedControllerBase
     [HttpGet("historico/{sessionId}")]
     public async Task<IActionResult> GetHistorico(string sessionId)
     {
-        try { var userId = await GetCurrentUserIdAsync(); return Ok(await _service.BuscarHistorico(sessionId, userId)); }
+        try
+        {
+            var userId = await GetCurrentUserIdAsync();
+            return Ok(await _service.BuscarHistorico(sessionId, userId));
+        }
         catch (UnauthorizedAccessException) { return Unauthorized(); }
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
@@ -44,7 +56,12 @@ public class AiChatController : AuthenticatedControllerBase
     [HttpDelete("historico/{sessionId}")]
     public async Task<IActionResult> LimparHistorico(string sessionId)
     {
-        try { var userId = await GetCurrentUserIdAsync(); await _service.LimparHistorico(sessionId, userId); return NoContent(); }
+        try
+        {
+            var userId = await GetCurrentUserIdAsync();
+            await _service.LimparHistorico(sessionId, userId);
+            return Ok(new { message = "Histórico limpo com sucesso." });
+        }
         catch (UnauthorizedAccessException) { return Unauthorized(); }
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
