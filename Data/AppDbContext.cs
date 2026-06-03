@@ -16,6 +16,7 @@ public class AppDbContext : DbContext
     public DbSet<MonthlyBudget> MonthlyBudgets { get; set; }
     public DbSet<AiConfig> AiConfigs { get; set; }
     public DbSet<AiMessage> AiMessages { get; set; }
+    public DbSet<FinancialProfile> FinancialProfiles { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -38,6 +39,17 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<AiMessage>()
             .Property(m => m.Provider)
             .HasConversion<string>();
+
+        // Relacionamento 1:1 entre User e FinancialProfile (unicidade por usuário)
+        modelBuilder.Entity<FinancialProfile>()
+            .HasIndex(p => p.UserId)
+            .IsUnique();
+
+        modelBuilder.Entity<FinancialProfile>()
+            .HasOne(p => p.User)
+            .WithMany()
+            .HasForeignKey(p => p.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
     
 }

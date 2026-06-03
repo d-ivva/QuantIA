@@ -30,6 +30,7 @@ builder.Services.AddScoped<ITransactionTypeService, TransactionTypeService>();
 builder.Services.AddScoped<IMonthlyBudgetService, MonthlyBudgetService>();
 builder.Services.AddScoped<IAiConfigService, AiConfigService>();
 builder.Services.AddScoped<IAiChatService, AiChatService>();
+builder.Services.AddScoped<IFinancialProfileService, FinancialProfileService>();
 builder.Services.AddHttpClient();
 
 // ── Autenticação JWT via Keycloak ─────────────────────────────────────
