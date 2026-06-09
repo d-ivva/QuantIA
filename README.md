@@ -51,10 +51,10 @@ dotnet tool install --global dotnet-ef
 
 ```bash
 # Backend
-git clone https://github.com/seu-usuario/QuantIA.git
+git clone https://github.com/d-ivva/QuantIA.git
 
 # Frontend
-git clone https://github.com/seu-usuario/QuantIA-Front.git
+git clone https://github.com/d-ivva/QuantIA-Front.git
 ```
 
 ### 2. Suba a infraestrutura com Docker
