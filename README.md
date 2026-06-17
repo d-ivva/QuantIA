@@ -2,6 +2,8 @@
 
 > Sistema de gestão financeira pessoal com autenticação via Keycloak, API REST em .NET 8 e interface web em React 19.
 
+## Demonstração do QuantIA
+
 ![Demonstração do QuantIA](./assets/quantia.gif)
 
 ### 🛠️ Tecnologias Utilizadas
