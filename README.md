@@ -2,6 +2,18 @@
 
 > Sistema de gestão financeira pessoal com autenticação via Keycloak, API REST em .NET 8 e interface web em React 19.
 
+## Demonstração do QuantIA
+
+![Demonstração do QuantIA](https://i.postimg.cc/bJhcQVwv/quantia2.gif)
+
+### 🛠️ Tecnologias Utilizadas
+![.NET 8](https://img.shields.io/badge/.NET-8.0-blueviolet?style=for-the-badge&logo=.net)
+![React 19](https://img.shields.io/badge/React-19.0-blue?style=for-the-badge&logo=react)
+![Keycloak 25](https://img.shields.io/badge/Keycloak-25.0-red?style=for-the-badge&logo=keycloak)
+![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16.0-blue?style=for-the-badge&logo=postgresql)
+![Docker Compose v2](https://img.shields.io/badge/Docker_Compose-v2-blue?style=for-the-badge&logo=docker)
+![Tailwind CSS 4](https://img.shields.io/badge/Tailwind_CSS-4.0-blue?style=for-the-badge&logo=tailwindcss)
+
 ---
 
 ## 📋 Descrição do Projeto
@@ -45,7 +57,7 @@ dotnet tool install --global dotnet-ef
 
 ---
 
-## 🚀 Instalação
+## 🚀 Instalação e Configuração
 
 ### 1. Clone os repositórios
 
@@ -57,17 +69,31 @@ git clone https://github.com/d-ivva/QuantIA.git
 git clone https://github.com/d-ivva/QuantIA-Front.git
 ```
 
-### 2. Suba a infraestrutura com Docker
+### 2. Configure as credenciais da infraestrutura (.env)
 
-Na pasta do **backend**, configure as credenciais e suba os serviços:
+Na pasta do **backend** (`QuantIA`), crie o arquivo de configuração de variáveis de ambiente para o Docker Compose:
 
 ```bash
 cd QuantIA
 
 # Copie o arquivo de exemplo e defina suas senhas
 cp .env.example .env
-# Edite o .env com as senhas que desejar antes de continuar
+```
 
+Abra o arquivo `.env` gerado e defina as credenciais e senhas de acesso aos serviços de banco de dados e do Keycloak:
+- `POSTGRES_USER`: Usuário do banco de dados (ex: `postgres`)
+- `POSTGRES_PASSWORD`: Senha do banco de dados (ex: `[sua-senha-postgres-aqui]`)
+- `POSTGRES_DB`: Nome do banco de dados (ex: `quantia`)
+- `PGADMIN_EMAIL`: E-mail de acesso ao pgAdmin (ex: `admin@admin.com`)
+- `PGADMIN_PASSWORD`: Senha de acesso ao pgAdmin (ex: `[sua-senha-pgadmin-aqui]`)
+- `KEYCLOAK_ADMIN`: Usuário administrador do Keycloak (ex: `admin`)
+- `KEYCLOAK_ADMIN_PASSWORD`: Senha administrativa para o painel do Keycloak (ex: `[sua-senha-keycloak-admin-aqui]`)
+
+### 3. Suba a infraestrutura com Docker
+
+Ainda na pasta do **backend**, suba os containers da infraestrutura:
+
+```bash
 # Suba todos os serviços em background
 docker-compose up -d
 ```
@@ -77,23 +103,90 @@ Isso inicia três serviços:
 - **pgAdmin 4** na porta `8080`
 - **Keycloak 25** na porta `8180`
 
-Aguarde cerca de 30 segundos para o Keycloak terminar de inicializar.
+Aguarde cerca de 30 segundos para o Keycloak terminar de inicializar antes de ir para o próximo passo.
 
-### 3. Configure o Keycloak (primeira vez)
+### 4. Configure o Keycloak
 
-1. Acesse `http://localhost:8180` → login com o usuário e senha definidos em `KEYCLOAK_ADMIN` e `KEYCLOAK_ADMIN_PASSWORD` no seu `.env`
-2. Crie um novo **Realm** com o nome: `quantia`
-3. Dentro do realm, crie um **Client** com os seguintes dados:
-   - **Client ID:** `quantia-frontend`
-   - **Client authentication:** desabilitado (fluxo público)
-   - **Valid redirect URIs:** `http://localhost:5173/*`
-   - **Web origins:** `http://localhost:5173`
-4. Crie um usuário de teste e defina uma senha permanente
+1. Acesse o painel de administração em `YOUR_KEYCLOAK_URL` (ex: `http://localhost:8180`)
+2. Faça login com o usuário e a senha administrativa que você definiu para `KEYCLOAK_ADMIN` e `KEYCLOAK_ADMIN_PASSWORD` no seu `.env`
+3. Crie um novo **Realm**:
+   - **Nome:** `YOUR_KEYCLOAK_REALM` (ex: `quantia`)
+4. Dentro do realm criado, crie um **Client**:
+   - **Client ID:** `YOUR_KEYCLOAK_CLIENT_ID` (ex: `quantia-frontend`)
+   - **Client authentication:** Desabilitado (fluxo público)
+   - **Valid redirect URIs:** `YOUR_FRONTEND_URL/*` (ex: `http://localhost:5173/*`)
+   - **Web origins:** `YOUR_FRONTEND_URL` (ex: `http://localhost:5173`)
+5. Crie um usuário de teste:
+   - Acesse **Users** -> **Add user**
+   - Defina os dados do usuário, salve e acesse a aba **Credentials**
+   - Clique em **Set password**, defina uma senha e desmarque a opção **Temporary** (tornando-a permanente)
 
-### 4. Configure e rode o Backend
+### 5. Configure as Variáveis de Ambiente da Aplicação
+
+Antes de iniciar os servidores das aplicações, configure as variáveis de ambiente utilizando as credenciais definidas anteriormente.
+
+#### Backend — `QuantIA/appsettings.json`
+
+Crie o arquivo `appsettings.json` na raiz da pasta do backend (`QuantIA`) com base no modelo abaixo, preenchendo as informações e credenciais definidas no `.env` e no console do Keycloak:
+
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Port=5432;Database=quantia;Username=postgres;Password=[sua-senha-postgres-aqui]"
+  },
+  "Keycloak": {
+    "Authority": "YOUR_KEYCLOAK_URL/realms/YOUR_KEYCLOAK_REALM",
+    "ClientId": "YOUR_KEYCLOAK_CLIENT_ID",
+    "AdminUrl": "YOUR_KEYCLOAK_URL",
+    "AdminRealm": "master",
+    "AdminClientId": "admin-cli",
+    "AdminUsername": "[seu-usuario-admin-keycloak]",
+    "AdminPassword": "[sua-senha-admin-keycloak]",
+    "Realm": "YOUR_KEYCLOAK_REALM"
+  },
+  "Frontend": {
+    "Url": "YOUR_FRONTEND_URL"
+  }
+}
+```
+
+> **Importante:** Nunca coloque senhas reais neste arquivo se o repositório for público. O `appsettings.json` já está no `.gitignore` deste projeto — cada desenvolvedor deve criá-lo localmente com suas próprias credenciais. As senhas devem corresponder às definidas no `docker-compose.yml`.
+
+#### Frontend — `QuantIA-Front/.env`
+
+Navegue até a pasta do frontend (`QuantIA-Front`), copie o arquivo de exemplo `.env.example` para `.env` e configure suas variáveis:
 
 ```bash
-cd QuantIA
+cd ../QuantIA-Front
+
+# Copie e configure as variáveis de ambiente
+cp .env.example .env
+```
+
+Abra o arquivo `.env` gerado e defina as chaves:
+
+```dotenv
+# URL base da API REST do backend
+VITE_API_URL=YOUR_API_URL
+
+# URL do servidor Keycloak
+VITE_KEYCLOAK_URL=YOUR_KEYCLOAK_URL
+
+# Nome do realm configurado no Keycloak
+VITE_KEYCLOAK_REALM=YOUR_KEYCLOAK_REALM
+
+# Client ID registrado no Keycloak
+VITE_KEYCLOAK_CLIENT_ID=YOUR_KEYCLOAK_CLIENT_ID
+```
+
+> **Atenção:** Em produção, substitua todos os valores `localhost` pelos endereços reais. Variáveis sem o prefixo `VITE_` não são acessíveis pelo browser.
+
+### 6. Configure e rode o Backend
+
+Volte para a pasta do backend (`QuantIA`), aplique as migrations e inicie a API:
+
+```bash
+cd ../QuantIA
 
 # Restaure os pacotes NuGet
 dotnet restore
@@ -107,70 +200,21 @@ dotnet run
 
 - **API REST:** `http://localhost:5221/api`
 
-### 5. Configure e rode o Frontend
+### 7. Configure e rode o Frontend
+
+Volte para a pasta do frontend (`QuantIA-Front`), instale as dependências e inicie o servidor de desenvolvimento:
 
 ```bash
-cd QuantIA-Front
+cd ../QuantIA-Front
 
 # Instale as dependências npm
 npm install
-
-# Copie e configure as variáveis de ambiente
-cp .env.example .env
-# Os valores padrão já apontam para localhost — edite apenas se necessário
 
 # Inicie o servidor de desenvolvimento
 npm run dev
 ```
 
 - **Aplicação:** `http://localhost:5173`
-
----
-
-## 🔐 Variáveis de Ambiente
-
-### Frontend — `QuantIA-Front/.env`
-
-```dotenv
-# URL base da API REST do backend
-VITE_API_URL=http://localhost:5221/api
-
-# URL do servidor Keycloak
-VITE_KEYCLOAK_URL=http://localhost:8180
-
-# Nome do realm configurado no Keycloak
-VITE_KEYCLOAK_REALM=quantia
-
-# Client ID registrado no Keycloak
-VITE_KEYCLOAK_CLIENT_ID=quantia-frontend
-```
-
-> **Atenção:** Em produção, substitua todos os valores `localhost` pelos endereços reais. Variáveis sem o prefixo `VITE_` não são acessíveis pelo browser.
-
-### Backend — `QuantIA/appsettings.json`
-
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=quantia;Username=postgres;Password=SUA_SENHA_POSTGRES"
-  },
-  "Keycloak": {
-    "Authority": "http://localhost:8180/realms/quantia",
-    "ClientId": "quantia-frontend",
-    "AdminUrl": "http://localhost:8180",
-    "AdminRealm": "master",
-    "AdminClientId": "admin-cli",
-    "AdminUsername": "admin",
-    "AdminPassword": "SUA_SENHA_KEYCLOAK",
-    "Realm": "quantia"
-  },
-  "Frontend": {
-    "Url": "http://localhost:5173"
-  }
-}
-```
-
-> **Importante:** Nunca coloque senhas reais neste arquivo se o repositório for público. O `appsettings.json` já está no `.gitignore` deste projeto — cada desenvolvedor deve criá-lo localmente com suas próprias credenciais. As senhas devem corresponder às definidas no `docker-compose.yml`.
 
 ---
 
@@ -473,23 +517,28 @@ QuantIA-Front/
 ## 🔄 Sequência completa de setup (do zero)
 
 ```bash
-# 1. Configurar credenciais e subir infraestrutura
+# 1. Configurar credenciais do Docker e subir infraestrutura
 cd QuantIA
 cp .env.example .env
-# Edite o .env e defina suas senhas antes de continuar
+# Abra o .env e configure suas senhas de banco e administrador do Keycloak
 docker-compose up -d
 
-# 2. Aguardar ~30 segundos e aplicar migrations
+# 2. Configure o Keycloak no navegador (Acesse http://localhost:8180)
+# (Crie o Realm, o Client e o Usuário de teste permanente)
+
+# 3. Configurar os arquivos das aplicações
+# (Crie/edite o appsettings.json no Backend e configure o .env no Frontend com os placeholders correspondentes)
+
+# 4. Aguardar ~30 segundos para o Keycloak inicializar e aplicar migrations no banco
 dotnet ef database update
 
-# 3. Iniciar o backend
-# (crie o appsettings.json com base no template do README se ainda não existir)
+# 5. Iniciar o backend
 dotnet run
 
-# 4. Em um novo terminal — iniciar o frontend
+# 6. Em um novo terminal — iniciar o frontend
 cd ../QuantIA-Front
 npm install
-cp .env.example .env
+cp .env.example .env # Edite as variáveis no arquivo .env se necessário
 npm run dev
 ```
 
